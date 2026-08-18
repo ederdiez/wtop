@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wtop</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="logo">w<span>top</span></div>
+  <div class="hstat"><span class="label">host</span><b id="hostname">&mdash;</b></div>
+  <div class="hstat"><span class="label">os</span><b id="os">&mdash;</b></div>
+  <div class="hstat"><span class="label">kernel</span><b id="kernel">&mdash;</b></div>
+  <div class="hstat"><span class="label">uptime</span><b id="uptime">&mdash;</b></div>
+  <div class="hstat"><span class="label">load</span><b id="load">&mdash;</b></div>
+  <div class="hstat"><span class="label">users</span><b id="users">&mdash;</b></div>
+  <div class="status" id="status" title="desconectado"></div>
+</header>
+
+<main>
+  <section class="grid">
+    <div class="panel cpu">
+      <h2>CPU <span id="cpu-freq" class="sub"></span></h2>
+      <div class="bigbar">
+        <div class="bar"><div id="cpu-bar" class="fill"></div></div>
+        <span id="cpu-pct" class="pct">0%</span>
+      </div>
+      <div id="cpu-cores" class="cores"></div>
+      <canvas id="cpu-chart" class="chart"></canvas>
+    </div>
+
+    <div class="panel mem">
+      <h2>Memoria</h2>
+      <div class="bar"><div id="mem-bar" class="fill"></div></div>
+      <div class="stats"><span id="mem-text">&mdash;</span></div>
+      <h2 class="small">Swap</h2>
+      <div class="bar"><div id="swap-bar" class="fill"></div></div>
+      <div class="stats"><span id="swap-text">&mdash;</span></div>
+      <canvas id="mem-chart" class="chart"></canvas>
+    </div>
+
+    <div class="panel temps">
+      <h2>Temperaturas</h2>
+      <div id="temps-list"><div class="none">sin datos</div></div>
+      <h2 class="small">Bater&iacute;a</h2>
+      <div id="battery"><div class="none">sin bater&iacute;a</div></div>
+    </div>
+
+    <div class="panel disk">
+      <h2>Discos <span id="disk-io" class="sub"></span></h2>
+      <div id="disk-list"></div>
+    </div>
+
+    <div class="panel net">
+      <h2>Red</h2>
+      <div id="net-list"></div>
+    </div>
+
+    <div class="panel procs">
+      <h2>Procesos</h2>
+      <table id="procs">
+        <thead><tr>
+          <th data-k="pid">PID</th>
+          <th data-k="user">USUARIO</th>
+          <th data-k="cpu" class="num">CPU%</th>
+          <th data-k="mem" class="num">MEM%</th>
+          <th data-k="status">ESTADO</th>
+          <th data-k="nice" class="num">NI</th>
+          <th data-k="time" class="num">TIEMPO</th>
+          <th data-k="name">NOMBRE</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>actualizado <b id="last-update">&mdash;</b></span>
+  <span class="muted">wtop &middot; refresco cada segundo</span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

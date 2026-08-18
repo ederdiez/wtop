@@ -43,6 +43,171 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+/* ---------------- ajustes ---------------- */
+
+const DEFAULT_SETTINGS = {
+  interval: 1,
+  procs: 20,
+  sort: "cpu:-1",
+  panels: { cpu: true, mem: true, temps: true, disk: true, net: true, procs: true },
+};
+
+const cloneSettings = () => ({
+  ...DEFAULT_SETTINGS,
+  panels: { ...DEFAULT_SETTINGS.panels },
+});
+
+function loadSettings() {
+  const s = cloneSettings();
+  try {
+    const saved = JSON.parse(localStorage.getItem("wtop-settings"));
+    if (saved) {
+      for (const k of ["interval", "procs", "sort"])
+        if (k in saved) s[k] = saved[k];
+      if (saved.panels)
+        for (const p of Object.keys(s.panels))
+          if (p in saved.panels) s.panels[p] = !!saved.panels[p];
+    }
+  } catch (_) {}
+  return s;
+}
+
+let settings = loadSettings();
+let paused = false;
+let lastData = null;
+let sparkCap = 60;
+
+const saveSettings = () =>
+  localStorage.setItem("wtop-settings", JSON.stringify(settings));
+
+const fmtInterval = (iv) =>
+  (iv % 1 === 0 ? String(iv) : String(iv).replace(".", ",")) + " s";
+
+function applyInterval() {
+  sparkCap = Math.max(10, Math.round(60 / settings.interval));
+  $("footer-meta").textContent =
+    "wtop \u00b7 refresco cada " + fmtInterval(settings.interval);
+}
+
+function applyPanels() {
+  for (const [name, visible] of Object.entries(settings.panels)) {
+    const p = document.querySelector(".panel." + name);
+    if (p) p.classList.toggle("hidden", !visible);
+  }
+}
+
+const parseSort = (v) => {
+  const [k, d] = v.split(":");
+  return { key: k, dir: +d };
+};
+const sortToStr = (s) => s.key + ":" + s.dir;
+let sortState = parseSort(settings.sort);
+
+function applySettingsUI() {
+  $("set-interval").value = String(settings.interval);
+  $("set-procs").value = String(settings.procs);
+  $("set-sort").value = settings.sort;
+  document.querySelectorAll(".checks input[data-panel]").forEach((cb) => {
+    cb.checked = !!settings.panels[cb.dataset.panel];
+  });
+}
+
+async function postInterval() {
+  try {
+    const r = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ interval: settings.interval }),
+    });
+    if (r.ok) settings.interval = (await r.json()).interval;
+  } catch (_) {}
+  applyInterval();
+  applySettingsUI();
+}
+
+function togglePause() {
+  paused = !paused;
+  $("set-pause").classList.toggle("active", paused);
+  $("footer-pause").classList.toggle("active", paused);
+  $("set-pause").textContent = paused ? "Reanudar" : "Pausar";
+  $("footer-pause").textContent = paused ? "reanudar" : "pausar";
+  if (!paused && lastData) render(lastData);
+}
+
+$("set-interval").addEventListener("change", () => {
+  settings.interval = parseFloat($("set-interval").value);
+  saveSettings();
+  postInterval();
+});
+
+$("set-procs").addEventListener("change", () => {
+  settings.procs = parseInt($("set-procs").value, 10);
+  saveSettings();
+  if (lastData) renderProcs(lastData);
+});
+
+$("set-sort").addEventListener("change", () => {
+  settings.sort = $("set-sort").value;
+  sortState = parseSort(settings.sort);
+  saveSettings();
+  renderSortHeader();
+  if (lastData) renderProcs(lastData);
+});
+
+document.querySelectorAll(".checks input[data-panel]").forEach((cb) => {
+  cb.addEventListener("change", () => {
+    settings.panels[cb.dataset.panel] = cb.checked;
+    saveSettings();
+    applyPanels();
+  });
+});
+
+$("set-pause").addEventListener("click", togglePause);
+$("footer-pause").addEventListener("click", togglePause);
+
+$("set-reset").addEventListener("click", () => {
+  localStorage.removeItem("wtop-settings");
+  settings = cloneSettings();
+  sortState = parseSort(settings.sort);
+  applyPanels();
+  applyInterval();
+  applySettingsUI();
+  renderSortHeader();
+  postInterval();
+});
+
+$("settings-btn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  $("settings").classList.toggle("hidden");
+});
+document.addEventListener("click", (e) => {
+  const s = $("settings");
+  if (!s.classList.contains("hidden") && !s.contains(e.target))
+    s.classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") $("settings").classList.add("hidden");
+});
+
+(async function initSettings() {
+  applyPanels();
+  applyInterval();
+  applySettingsUI();
+  renderSortHeader();
+  try {
+    const r = await fetch("/api/settings");
+    if (r.ok) {
+      const d = await r.json();
+      if (d.interval && Math.abs(d.interval - settings.interval) > 0.001) {
+        settings.interval = d.interval;
+        saveSettings();
+        applyInterval();
+        applySettingsUI();
+      }
+    }
+  } catch (_) {}
+})();
+
 /* ---------------- sparklines ---------------- */
 
 class Spark {
@@ -57,7 +222,7 @@ class Spark {
   push(vals) {
     this.series.forEach((s, i) => {
       s.push(vals[i]);
-      if (s.length > 60) s.shift();
+      if (s.length > sparkCap) s.shift();
     });
     this.draw();
   }
@@ -94,7 +259,7 @@ class Spark {
     ctx.stroke();
 
     this.series.forEach((s, si) => {
-      const step = w / (60 - 1);
+      const step = w / (sparkCap - 1);
       ctx.beginPath();
       s.forEach((v, i) => {
         const x = i * step;
@@ -123,8 +288,6 @@ const memSpark = new Spark("mem-chart", ["#e0af68"], 100);
 const netSparks = new Map();
 
 /* ---------------- procesamiento ---------------- */
-
-const sortState = { key: "cpu", dir: -1 };
 
 function renderHeader(d) {
   $("hostname").textContent = d.hostname;
@@ -311,7 +474,7 @@ function renderProcs(d) {
 
   const tbody = document.querySelector("#procs tbody");
   tbody.innerHTML = "";
-  for (const p of list.slice(0, 20)) {
+  for (const p of list.slice(0, settings.procs)) {
     const tr = document.createElement("tr");
     tr.innerHTML =
       `<td>${p.pid}</td>` +
@@ -356,7 +519,10 @@ const es = new EventSource("/stream");
 es.onopen = () => setStatus(true);
 es.onerror = () => setStatus(false);
 es.onmessage = (e) => {
-  try { render(JSON.parse(e.data)); } catch (_) {}
+  try {
+    lastData = JSON.parse(e.data);
+    if (!paused) render(lastData);
+  } catch (_) {}
 };
 
 document.querySelectorAll("#procs th").forEach((th) => {
@@ -364,7 +530,9 @@ document.querySelectorAll("#procs th").forEach((th) => {
     const k = th.dataset.k;
     if (sortState.key === k) sortState.dir *= -1;
     else sortState.key = k, sortState.dir = -1;
+    settings.sort = sortToStr(sortState);
+    saveSettings();
+    $("set-sort").value = settings.sort;
     renderSortHeader();
   });
 });
-renderSortHeader();

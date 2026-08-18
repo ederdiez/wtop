@@ -16,6 +16,60 @@
   <div class="hstat"><span class="label">load</span><b id="load">&mdash;</b></div>
   <div class="hstat"><span class="label">users</span><b id="users">&mdash;</b></div>
   <div class="status" id="status" title="desconectado"></div>
+  <button id="settings-btn" class="gear" title="ajustes">&#9881;</button>
+
+  <div id="settings" class="settings hidden">
+    <h2 class="small">Ajustes</h2>
+    <div class="srow">
+      <span>Intervalo de refresco</span>
+      <select id="set-interval">
+        <option value="0.5">0,5 s</option>
+        <option value="1">1 s</option>
+        <option value="2">2 s</option>
+        <option value="5">5 s</option>
+        <option value="10">10 s</option>
+      </select>
+    </div>
+    <div class="srow">
+      <span>Procesos mostrados</span>
+      <select id="set-procs">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+    <div class="srow">
+      <span>Ordenaci&oacute;n inicial</span>
+      <select id="set-sort">
+        <option value="cpu:-1">CPU (mayor)</option>
+        <option value="cpu:1">CPU (menor)</option>
+        <option value="mem:-1">Memoria (mayor)</option>
+        <option value="mem:1">Memoria (menor)</option>
+        <option value="pid:1">PID (menor)</option>
+        <option value="pid:-1">PID (mayor)</option>
+        <option value="name:1">Nombre (A-Z)</option>
+        <option value="name:-1">Nombre (Z-A)</option>
+      </select>
+    </div>
+    <div class="srow"><span>Paneles visibles</span></div>
+    <div class="checks">
+      <label><input type="checkbox" data-panel="cpu"> CPU</label>
+      <label><input type="checkbox" data-panel="mem"> Memoria</label>
+      <label><input type="checkbox" data-panel="temps"> Temperaturas</label>
+      <label><input type="checkbox" data-panel="disk"> Discos</label>
+      <label><input type="checkbox" data-panel="net"> Red</label>
+      <label><input type="checkbox" data-panel="procs"> Procesos</label>
+    </div>
+    <div class="srow">
+      <span>Pausar vista</span>
+      <button id="set-pause" class="btn">Pausar</button>
+    </div>
+    <div class="srow">
+      <span>Restablecer ajustes</span>
+      <button id="set-reset" class="btn">Restablecer</button>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -78,7 +132,10 @@
 
 <footer>
   <span>actualizado <b id="last-update">&mdash;</b></span>
-  <span class="muted">wtop &middot; refresco cada segundo</span>
+  <span class="footer-right">
+    <button id="footer-pause" class="btn small">pausar</button>
+    <span class="muted" id="footer-meta">wtop &middot; refresco cada 1 s</span>
+  </span>
 </footer>
 
 <script src="/static/app.js"></script>
